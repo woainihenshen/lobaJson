@@ -6,3 +6,5 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--co
 make -j `cat /proc/cpuinfo | grep processor| wc -l`
 cd tests
 ./lobaJsonTest
+cd  ../..
+coveralls
