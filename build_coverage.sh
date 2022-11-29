@@ -9,3 +9,4 @@ cd tests
 cd  ../..
 coveralls
 #test1
+#test2
