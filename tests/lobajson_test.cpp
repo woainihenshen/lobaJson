@@ -27,29 +27,87 @@ static int test_pass = 0;
         EXPECT_EQ_BASE((expect) == (actual), expect, actual, "%d")
 
 static void test_parse_null() {
-  LobaValue v{};
+  LobaValue v;
   v.type = lobaTestDefaultType;
   LobaJson lobajson;
   EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "null"));
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
 }
 
-static void test_parse_expect_value() {
+static void test_parse_true() {
   LobaValue v;
-
   v.type = lobaTestDefaultType;
   LobaJson lobajson;
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "true"));
+  EXPECT_EQ_INT(lobaTrue, lobajson.LobaGetType(&v));
+}
+static void test_parse_false() {
+  LobaValue v;
+  v.type = lobaTestDefaultType;
+  LobaJson lobajson;
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "false"));
+  EXPECT_EQ_INT(lobaFalse, lobajson.LobaGetType(&v));
+}
+
+
+static void test_parse_whitespace() {
+  LobaJson lobajson;
+  LobaValue v;
+  v.type = lobaTestDefaultType;
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "  null"));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+
+  v.type = lobaTestDefaultType;
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "  "
+                                                    "null"));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+}
+
+
+static void test_parse_expect_value() {
+  LobaJson lobajson;
+  LobaValue v;
+  v.type = lobaTestDefaultType;
   EXPECT_EQ_INT(lobaParseExpectValue, lobajson.LobaParse(&v, ""));
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
 
   v.type = lobaTestDefaultType;
 
-  EXPECT_EQ_INT(lobaParseExpectValue, lobajson.LobaParse(&v, ""));
+  EXPECT_EQ_INT(lobaParseExpectValue, lobajson.LobaParse(&v, " "));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+}
+
+static void test_parse_invalid_value() {
+  LobaJson lobajson;
+  LobaValue v;
+  v.type = lobaTestDefaultType;
+  EXPECT_EQ_INT(lobaParseInvalidValue, lobajson.LobaParse(&v, "nulx"));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+  v.type = lobaTestDefaultType;
+  EXPECT_EQ_INT(lobaParseInvalidValue, lobajson.LobaParse(&v, "nux"));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+
+  v.type = lobaTestDefaultType;
+  EXPECT_EQ_INT(lobaParseInvalidValue, lobajson.LobaParse(&v, "nx"));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+
+  v.type = lobaTestDefaultType;
+  EXPECT_EQ_INT(lobaParseInvalidValue, lobajson.LobaParse(&v, "x"));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+
+  v.type = lobaTestDefaultType;
+
+  EXPECT_EQ_INT(lobaParseInvalidValue, lobajson.LobaParse(&v, "?"));
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
 }
 
 static void test_parse() {
   test_parse_null();
+  test_parse_true();
+  test_parse_false();
+  test_parse_whitespace();
+  test_parse_expect_value();
+  test_parse_invalid_value();
 }
 
 int main() {
