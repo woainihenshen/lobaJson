@@ -7,7 +7,10 @@ make -j `cat /proc/cpuinfo | grep processor| wc -l`
 ctest
 pwd
 who
+source ~/.bashrc
 coveralls -r .. --gcov-options '\-lp' -t PAfc6k2qXkZzTkTKfkFUQWkzxGHI7qMem -e tests -e build/CMakeFiles
+cd ~
+pwd
 
 #test1
 #test2
