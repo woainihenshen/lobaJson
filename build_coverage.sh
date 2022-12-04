@@ -5,13 +5,9 @@ rm -rf *
 cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage ..
 make -j `cat /proc/cpuinfo | grep processor| wc -l`
 ctest
-pwd
-who
 source ~/.bashrc
 coveralls -r .. --gcov-options '\-lp' -t PAfc6k2qXkZzTkTKfkFUQWkzxGHI7qMem -e tests -e build/CMakeFiles
 cd ~
-pwd
-
 #test1
 #test2
 #test3
