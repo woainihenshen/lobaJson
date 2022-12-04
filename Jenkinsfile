@@ -9,7 +9,7 @@ pipeline {
         }
         stage('Test') {
             steps {
-            sh 'pwd'
+            sh 'cd ${WORKSPACE}/build'
             sh 'ctest'
             }
         }
