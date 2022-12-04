@@ -15,7 +15,7 @@ pipeline {
         }
         stage('Test') {
             steps {
-            sh 'cd ${WORKSPACE}/build && test'
+            sh 'cd ${WORKSPACE}/build && ctest'
             }
         }
         stage('Deploy') {
