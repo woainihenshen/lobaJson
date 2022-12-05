@@ -5,7 +5,6 @@
 
 #include <string.h>
 
-
 static int main_ret = 0;
 static int test_count = 0;
 static int test_pass = 0;
@@ -34,21 +33,28 @@ static void test_parse_null() {
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
 }
 
+static void test_parse_root_not_sigular() {
+  LobaValue v;
+  v.type = lobaTestDefaultType;
+  LobaJson lobajson;
+  EXPECT_EQ_INT(lobaParseRootNotSingular, lobajson.LobaParse(&v, "null nulll"));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+}
+
 static void test_parse_true() {
   LobaValue v;
   v.type = lobaTestDefaultType;
   LobaJson lobajson;
-  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "true"));
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, " true "));
   EXPECT_EQ_INT(lobaTrue, lobajson.LobaGetType(&v));
 }
 static void test_parse_false() {
   LobaValue v;
   v.type = lobaTestDefaultType;
   LobaJson lobajson;
-  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "false"));
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, " false "));
   EXPECT_EQ_INT(lobaFalse, lobajson.LobaGetType(&v));
 }
-
 
 static void test_parse_whitespace() {
   LobaJson lobajson;
@@ -62,7 +68,6 @@ static void test_parse_whitespace() {
                                                     "null"));
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
 }
-
 
 static void test_parse_expect_value() {
   LobaJson lobajson;
@@ -108,12 +113,12 @@ static void test_parse() {
   test_parse_whitespace();
   test_parse_expect_value();
   test_parse_invalid_value();
+  test_parse_root_not_sigular();
 }
 
 int main() {
   test_parse();
   printf("%d/%d (%3.2f%%) "
-  "passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
+         "passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
   return main_ret;
 }
-
