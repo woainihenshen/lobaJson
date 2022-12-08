@@ -23,6 +23,7 @@ enum LobaType {
 };
 
 struct LobaValue {
+  double n;
   LobaType type;
 };
 
@@ -31,6 +32,7 @@ enum {
   lobaParseExpectValue,
   lobaParseInvalidValue,
   lobaParseRootNotSingular,
+  lobaParseNumberTooBig
 };
 
 struct LobaContext {
@@ -44,16 +46,30 @@ class LobaJson {
   int LobaParse(LobaValue *v, const char *json);
   LobaType LobaGetType(const LobaValue *v);
 
+  double LobaGetNumber(const LobaValue *v) {
+    assert(v != nullptr && v->type == LobaType::lobaNumber);
+    return v->n;
+  }
+
  protected:
   void LobaParseWhitespace(LobaContext *c);
   int LobaParseValue(LobaContext *c, LobaValue *v);
   int LobaParseNull(LobaContext *c, LobaValue *v);
   int LobaParseTrue(LobaContext *c, LobaValue *v);
   int LobaParseFasle(LobaContext *c, LobaValue *v);
+  int LobaParseNumber(LobaContext *c, LobaValue *v);
 
  private:
   std::string parser_name_;
 };
+
+inline void LobaJson::LobaParseWhitespace(LobaContext *c) {
+  const char *p = c->json;
+  while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
+    p++;
+  }
+  c->json = p;
+}
 
 inline int LobaJson::LobaParseNull(LobaContext *c, LobaValue *v) {
   EXPECT(c, 'n');
@@ -61,7 +77,7 @@ inline int LobaJson::LobaParseNull(LobaContext *c, LobaValue *v) {
     return lobaParseInvalidValue;
   }
   c->json += 3;
-  v->type = lobaNull;
+  v->type = LobaType::lobaNull;
   return lobaParseOk;
 }
 
@@ -78,7 +94,7 @@ int LobaJson::LobaParseTrue(LobaContext *c, LobaValue *v) {
 int LobaJson::LobaParseFasle(LobaContext *c, LobaValue *v) {
   EXPECT(c, 'f');
   if (c->json[0] != 'a' || c->json[1] != 'l'
-  || c->json[2] != 's' || c->json[3] != 'e') {
+      || c->json[2] != 's' || c->json[3] != 'e') {
     return lobaParseInvalidValue;
   }
   c->json += 4;
@@ -86,7 +102,15 @@ int LobaJson::LobaParseFasle(LobaContext *c, LobaValue *v) {
   return lobaParseOk;
 }
 
-
+int LobaJson::LobaParseNumber(LobaContext *c, LobaValue *v) {
+  char *end;;
+  v->n = strtod(c->json, &end);
+  if (c->json == end)
+    return lobaParseInvalidValue;
+  c->json = end;
+  v->type = LobaType::lobaNumber;
+  return lobaParseOk;
+}
 
 inline int LobaJson::LobaParseValue(LobaContext *c, LobaValue *v) {
   switch (*c->json) {
@@ -94,16 +118,8 @@ inline int LobaJson::LobaParseValue(LobaContext *c, LobaValue *v) {
     case 't':return LobaParseTrue(c, v);
     case 'f':return LobaParseFasle(c, v);
     case '\0':return lobaParseExpectValue;
-    default:return lobaParseInvalidValue;
+    default:return LobaParseNumber(c, v);
   }
-}
-
-inline void LobaJson::LobaParseWhitespace(LobaContext *c) {
-  const char *p = c->json;
-  while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
-    p++;
-  }
-  c->json = p;
 }
 
 inline int LobaJson::LobaParse(LobaValue *v, const char *json) {
