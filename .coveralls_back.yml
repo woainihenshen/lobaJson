@@ -1,6 +1,0 @@
-service_name: jenkins
-repo_token: qnGmWU2SxoIp5p5LUleQy5EnODuY23hxw
-gcov_options: '-lp'
-gem 'coveralls', require: false
-
-
