@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include <string.h>
+#include <iostream>
 
 static int main_ret = 0;
 static int test_count = 0;
@@ -25,6 +26,9 @@ static int test_pass = 0;
 #define EXPECT_EQ_INT(expect, actual) \
         EXPECT_EQ_BASE((expect) == (actual), expect, actual, "%d")
 
+#define EXPECT_EQ_DOUBLE(expect, actual) \
+        EXPECT_EQ_BASE((expect) == (actual), expect, actual, "%.17g")
+
 #define TEST_ERROR(error, json)\
     do {\
         LobaValue v;\
@@ -35,12 +39,10 @@ static int test_pass = 0;
     } \
     while(0)
 
-
 static void test_parse_expect_value_refactor() {
   TEST_ERROR(lobaParseExpectValue, "");
   TEST_ERROR(lobaParseExpectValue, " ");
 }
-
 
 static void test_parse_null() {
   LobaValue v;
@@ -130,38 +132,53 @@ static void test_parse_invalid_value() {
         LobaJson lobajson;\
         EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, json));\
         EXPECT_EQ_INT(lobaNumber, lobajson.LobaGetType(&v));\
-        EXPECT_EQ_INT(expect, lobajson.LobaGetNumber(&v));\
+        EXPECT_EQ_DOUBLE(expect, lobajson.LobaGetNumber(&v));\
     } \
     while(0)
 
-    //基本测试合法json数字，边界值，最大值
+//基本测试合法json数字，边界值，最大值
 static void test_parse_number() {
-    TEST_NUMBER(0.0, "0");
-    TEST_NUMBER(0.0, "-0");
-    TEST_NUMBER(0.0, "-0.0");
-    TEST_NUMBER(1.0, "1");
-    TEST_NUMBER(-1.0, "-1");
-    TEST_NUMBER(1.5, "1.5");
-    TEST_NUMBER(-1.5, "-1.5");
-    TEST_NUMBER(3.1416, "3.1416");
-    TEST_NUMBER(1E10, "1E10");
-    TEST_NUMBER(1e10, "1e10");
-    TEST_NUMBER(1E+10, "1E+10");
-    TEST_NUMBER(1E-10, "1E-10");
-    TEST_NUMBER(-1E10, "-1E10");
-    TEST_NUMBER(-1e10, "-1e10");
-    TEST_NUMBER(-1E+10, "-1E+10");
-    TEST_NUMBER(-1E-10, "-1E-10");
-    TEST_NUMBER(1.234E+10, "1.234E+10");
-    TEST_NUMBER(1.234E-10, "1.234E-10");
-    TEST_NUMBER(0.0, "1e-10000"); /* must underflow */
+  TEST_NUMBER(0.0, "0");
+  TEST_NUMBER(0.0, "-0");
+  TEST_NUMBER(0.0, "-0.0");
+  TEST_NUMBER(1.0, "1");
+  TEST_NUMBER(-1.0, "-1");
+  TEST_NUMBER(1.5, "1.5");
+  TEST_NUMBER(-1.5, "-1.5");
+  TEST_NUMBER(3.1416, "3.1416");
+  TEST_NUMBER(1E10, "1E10");
+  TEST_NUMBER(1e10, "1e10");
+  TEST_NUMBER(1E+10, "1E+10");
+  TEST_NUMBER(1E-10, "1E-10");
+  TEST_NUMBER(-1E10, "-1E10");
+  TEST_NUMBER(-1e10, "-1e10");
+  TEST_NUMBER(-1E+10, "-1E+10");
+  TEST_NUMBER(-1E-10, "-1E-10");
+  TEST_NUMBER(1.234E+10, "1.234E+10");
+  TEST_NUMBER(1.234E-10, "1.234E-10");
+  TEST_NUMBER(0.0, "1e-10000"); /* must underflow */
+
+
+#if 1
+  TEST_NUMBER(1.0000000000000002, "1.0000000000000002"); /* the smallest number > 1 */
+  TEST_NUMBER(4.9406564584124654e-324, "4.9406564584124654e-324"); /* minimum denormal */
+  TEST_NUMBER(-4.9406564584124654e-324, "-4.9406564584124654e-324");
+  TEST_NUMBER(2.2250738585072009e-308, "2.2250738585072009e-308");  /* Max subnormal double */
+  TEST_NUMBER(-2.2250738585072009e-308, "-2.2250738585072009e-308");
+  TEST_NUMBER(2.2250738585072014e-308, "2.2250738585072014e-308");  /* Min normal positive double */
+  TEST_NUMBER(-2.2250738585072014e-308, "-2.2250738585072014e-308");
+  TEST_NUMBER(1.7976931348623157e+308, "1.7976931348623157e+308");  /* Max double */
+  TEST_NUMBER(-1.7976931348623157e+308, "-1.7976931348623157e+308");
+//  TEST_NUMBER(1.7976931348623157e+310, "1.7976931348623157e+310");  /* Max double */
+#endif
+
 }
 
 //不合法json数字
 static void test_parse_invalid_numberValue() {
   /* ... */
   /* invalid number */
-#if 0
+#if 1
   TEST_ERROR(lobaParseInvalidValue, "+0");
   TEST_ERROR(lobaParseInvalidValue, "+1");
   TEST_ERROR(lobaParseInvalidValue, ".123"); /* at least one digit before '.' */
@@ -174,7 +191,7 @@ static void test_parse_invalid_numberValue() {
 }
 
 static void test_parse_root_not_singularNumber() {
-#if 0
+#if 1
   TEST_ERROR(lobaParseRootNotSingular, "0123"); /* after zero should be '.' , 'E' , 'e' or nothing */
   TEST_ERROR(lobaParseRootNotSingular, "0x0");
   TEST_ERROR(lobaParseRootNotSingular, "0x123");
@@ -182,13 +199,11 @@ static void test_parse_root_not_singularNumber() {
 }
 
 static void test_parse_number_too_big() {
-#if 0
+#if 1
   TEST_ERROR(lobaParseNumberTooBig, "1e309");
-    TEST_ERROR(lobaParseNumberTooBig, "-1e309");
+  TEST_ERROR(lobaParseNumberTooBig, "-1e309");
 #endif
 }
-
-
 
 static void test_parse() {
   test_parse_null();
