@@ -79,7 +79,6 @@ inline void LobaJson::LobaParseWhitespace(LobaContext *c) {
   c->json = p;
 }
 
-
 int LobaJson::LobaParseNumber(LobaContext *c, LobaValue *v) {
 
   const char *p = c->json;
