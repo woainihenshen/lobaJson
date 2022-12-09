@@ -79,45 +79,8 @@ inline void LobaJson::LobaParseWhitespace(LobaContext *c) {
   c->json = p;
 }
 
-//inline int LobaJson::LobaParseNull(LobaContext *c, LobaValue *v) {
-//  EXPECT(c, 'n');
-//  if (c->json[0] != 'u' || c->json[1] != 'l' || c->json[2] != 'l') {
-//    return lobaParseInvalidValue;
-//  }
-//  c->json += 3;
-//  v->type = LobaType::lobaNull;
-//  return lobaParseOk;
-//}
-//
-//int LobaJson::LobaParseTrue(LobaContext *c, LobaValue *v) {
-//  EXPECT(c, 't');
-//  if (c->json[0] != 'r' || c->json[1] != 'u' || c->json[2] != 'e') {
-//    return lobaParseInvalidValue;
-//  }
-//  c->json += 3;
-//  v->type = lobaTrue;
-//  return lobaParseOk;
-//}
-//
-//int LobaJson::LobaParseFalse(LobaContext *c, LobaValue *v) {
-//  EXPECT(c, 'f');
-//  if (c->json[0] != 'a' || c->json[1] != 'l'
-//      || c->json[2] != 's' || c->json[3] != 'e') {
-//    return lobaParseInvalidValue;
-//  }
-//  c->json += 4;
-//  v->type = lobaFalse;
-//  return lobaParseOk;
-//}
 
 int LobaJson::LobaParseNumber(LobaContext *c, LobaValue *v) {
-//  char *end;;
-//  v->n = strtod(c->json, &end);
-//  if (c->json == end)
-//    return lobaParseInvalidValue;
-//  c->json = end;
-//  v->type = LobaType::lobaNumber;
-//  return lobaParseOk;
 
   const char *p = c->json;
   /* 负号 ... */
