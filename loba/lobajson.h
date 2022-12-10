@@ -63,7 +63,8 @@ class LobaJson {
   int LobaParseNull(LobaContext *c, LobaValue *v);
   int LobaParseTrue(LobaContext *c, LobaValue *v);
   int LobaParseFalse(LobaContext *c, LobaValue *v);
-  int LobaParseLiteral(LobaContext *c, LobaValue *v, const char *literal, LobaType type);
+  int LobaParseLiteral(LobaContext *c, LobaValue *v,
+                       const char *literal, LobaType type);
 
   int LobaParseNumber(LobaContext *c, LobaValue *v);
 
@@ -80,7 +81,6 @@ inline void LobaJson::LobaParseWhitespace(LobaContext *c) {
 }
 
 int LobaJson::LobaParseNumber(LobaContext *c, LobaValue *v) {
-
   const char *p = c->json;
   /* 负号 ... */
   if (*p == '-') {
@@ -91,7 +91,7 @@ int LobaJson::LobaParseNumber(LobaContext *c, LobaValue *v) {
     p++;
   } else {
     if (!ISDIGIT1TO9(*p)) { return lobaParseInvalidValue; }
-    for (p++; ISDIGIT(*p); p++);
+    for (p++; ISDIGIT(*p); p++) {}
   }
   /* 小数 ... */
   if (*p == '.') {
@@ -99,7 +99,7 @@ int LobaJson::LobaParseNumber(LobaContext *c, LobaValue *v) {
     if (!ISDIGIT(*p)) {
       return lobaParseInvalidValue;
     }
-    for (p++; ISDIGIT(*p); p++);
+    for (p++; ISDIGIT(*p); p++) {}
   }
   /* 指数 ... */
   if (*p == 'e' || *p == 'E') {
@@ -110,7 +110,7 @@ int LobaJson::LobaParseNumber(LobaContext *c, LobaValue *v) {
     if (!ISDIGIT(*p)) {
       return lobaParseInvalidValue;
     }
-    for (p++; ISDIGIT(*p); p++);
+    for (p++; ISDIGIT(*p); p++) {}
   }
 
   errno = 0;
@@ -122,7 +122,6 @@ int LobaJson::LobaParseNumber(LobaContext *c, LobaValue *v) {
   v->type = LobaType::lobaNumber;
   c->json = p;
   return lobaParseOk;
-
 }
 
 inline int LobaJson::LobaParseValue(LobaContext *c, LobaValue *v) {
@@ -160,7 +159,8 @@ inline LobaType LobaJson::LobaGetType(const LobaValue *v) {
   assert(v != nullptr);
   return v->type;
 }
-int LobaJson::LobaParseLiteral(LobaContext *c, LobaValue *v, const char *literal, LobaType type) {
+int LobaJson::LobaParseLiteral(LobaContext *c, LobaValue *v,
+                               const char *literal, LobaType type) {
   size_t i;
   EXPECT(c, literal[0]);
   for (i = 0; literal[i + 1]; i++) {
