@@ -29,6 +29,14 @@ static int test_pass = 0;
 #define EXPECT_EQ_DOUBLE(expect, actual) \
         EXPECT_EQ_BASE((expect) == (actual), expect, actual, "%.17g")
 
+#define EXPECT_EQ_STRING(expect, actual, length) \
+        EXPECT_EQ_BASE(sizeof(expect) - 1 == (length) && \
+        memcmp(expect, actual, length) == 0, expect, actual, "%s")
+
+#define EXPECT_TRUE(actual) EXPECT_EQ_BASE((actual) != 0, "true", "false", "%s")
+
+#define EXPECT_FALSE(actual) EXPECT_EQ_BASE((actual) == 0, "false", "true", "%s")
+
 #define TEST_ERROR(error, json)\
     do {\
         LobaValue v;\
@@ -169,7 +177,6 @@ static void test_parse_number() {
   TEST_NUMBER(-2.2250738585072014e-308, "-2.2250738585072014e-308");
   TEST_NUMBER(1.7976931348623157e+308, "1.7976931348623157e+308");  /* Max double */
   TEST_NUMBER(-1.7976931348623157e+308, "-1.7976931348623157e+308");
-//  TEST_NUMBER(1.7976931348623157e+310, "1.7976931348623157e+310");  /* Max double */
 #endif
 
 }
@@ -205,6 +212,24 @@ static void test_parse_number_too_big() {
 #endif
 }
 
+#define TEST_STRING(expect, json)\
+    do {\
+        LobaValue v;\
+        v.type = lobaTestDefaultType;\
+        LobaJson lobajson;\
+        EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, json));\
+        EXPECT_EQ_INT(lobaString, lobajson.LobaGetType(&v));\
+        EXPECT_EQ_STRING(expect, lobajson.LobaGetString(&v), lobajson.LobaGetStringLength(&v));\
+    } \
+    while(0)
+
+static void test_parse_string() {
+  TEST_STRING("", "\"\"");
+  TEST_STRING("Hello", "\"Hello\"");
+#if 0
+#endif
+}
+
 static void test_parse() {
   test_parse_null();
   test_parse_true();
@@ -218,6 +243,7 @@ static void test_parse() {
   test_parse_invalid_numberValue();
   test_parse_root_not_singularNumber();
   test_parse_number_too_big();
+  test_parse_string();
 }
 
 int main() {
