@@ -6,6 +6,7 @@
 #include <cassert>
 #include <string>
 #include <cmath>
+#include <cstring>
 template<typename T, typename T1>
 void EXPECT(T c, T1 ch) {
   assert(*c->json == (ch));
