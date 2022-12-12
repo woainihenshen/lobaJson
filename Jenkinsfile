@@ -18,6 +18,12 @@ pipeline {
             sh 'cd ${WORKSPACE}/build && ctest'
             }
         }
+        stage('checkMemoryLeak') {
+            steps {
+            sh 'cd ${WORKSPACE}/build/tests && valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./lobaJsonTest'
+            }
+            }
+        }
         stage('Deploy') {
             steps {
                 echo 'Deploying....'

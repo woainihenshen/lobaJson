@@ -46,7 +46,9 @@ enum {
   lobaParseInvalidValue,
   lobaParseRootNotSingular,
   lobaParseNumberTooBig,
-  lobaParseMissQuotationMark
+  lobaParseMissQuotationMark,
+  lobaParseInvalidStringEscape,
+  lobaParseInvalidStringChar
 };
 
 struct LobaContext {
@@ -66,8 +68,8 @@ class LobaJson {
 
   void LobaFree(LobaValue *p_value);
 
-  int LobaGetBoolen(const LobaValue *v);
-  void LobaSetBoolen(LobaValue *v, LobaType b);
+  int LobaGetBoolean(const LobaValue *v);
+  void LobaSetBoolean(LobaValue *v, LobaType b);
 
   double LobaGetNumber(const LobaValue *v);
   void LobaSetNumber(LobaValue *v, double n);
@@ -254,13 +256,14 @@ size_t LobaJson::LobaGetStringLength(const LobaValue *v) {
   assert(v != nullptr && v->type == LobaType::lobaString);
   return v->u.len;
 }
-int LobaJson::LobaGetBoolen(const LobaValue *v) {
+
+int LobaJson::LobaGetBoolean(const LobaValue *v) {
   assert(v != nullptr && (v->type == LobaType::lobaTrue ||
       v->type == LobaType::lobaFalse));
   return v->type == LobaType::lobaTrue;
 }
 
-void LobaJson::LobaSetBoolen(LobaValue *v, LobaType b) {
+void LobaJson::LobaSetBoolean(LobaValue *v, LobaType b) {
   LobaFree(v);
   v->type = static_cast<LobaType>(b);
 }

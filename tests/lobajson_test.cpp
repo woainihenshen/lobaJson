@@ -34,7 +34,6 @@ static int test_pass = 0;
         memcmp(expect, actual, length) == 0, expect, actual, "%s")
 
 #define EXPECT_TRUE(actual) EXPECT_EQ_BASE((actual) != 0, "true", "false", "%s")
-
 #define EXPECT_FALSE(actual) EXPECT_EQ_BASE((actual) == 0, "false", "true", "%s")
 
 #define TEST_ERROR(error, json)\
@@ -44,6 +43,7 @@ static int test_pass = 0;
         LobaJson lobajson;\
         EXPECT_EQ_INT(error, lobajson.LobaParse(&v, json));\
         EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));\
+        lobajson.LobaFree(&v); \
     } \
     while(0)
 
@@ -58,6 +58,7 @@ static void test_parse_null() {
   LobaJson lobajson;
   EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "null"));
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+  lobajson.LobaFree(&v);
 }
 
 static void test_parse_root_not_sigular() {
@@ -66,6 +67,7 @@ static void test_parse_root_not_sigular() {
   LobaJson lobajson;
   EXPECT_EQ_INT(lobaParseRootNotSingular, lobajson.LobaParse(&v, "null nulll"));
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+  lobajson.LobaFree(&v);
 }
 
 static void test_parse_true() {
@@ -74,6 +76,7 @@ static void test_parse_true() {
   LobaJson lobajson;
   EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, " true "));
   EXPECT_EQ_INT(lobaTrue, lobajson.LobaGetType(&v));
+  lobajson.LobaFree(&v);
 }
 static void test_parse_false() {
   LobaValue v;
@@ -81,6 +84,7 @@ static void test_parse_false() {
   LobaJson lobajson;
   EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, " false "));
   EXPECT_EQ_INT(lobaFalse, lobajson.LobaGetType(&v));
+  lobajson.LobaFree(&v);
 }
 
 static void test_parse_whitespace() {
@@ -94,6 +98,7 @@ static void test_parse_whitespace() {
   EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "  "
                                                     "null"));
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+  lobajson.LobaFree(&v);
 }
 
 static void test_parse_expect_value() {
@@ -107,6 +112,7 @@ static void test_parse_expect_value() {
 
   EXPECT_EQ_INT(lobaParseExpectValue, lobajson.LobaParse(&v, " "));
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+  lobajson.LobaFree(&v);
 }
 
 static void test_parse_invalid_value() {
@@ -131,6 +137,7 @@ static void test_parse_invalid_value() {
 
   EXPECT_EQ_INT(lobaParseInvalidValue, lobajson.LobaParse(&v, "?"));
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
+  lobajson.LobaFree(&v);
 }
 
 #define TEST_NUMBER(expect, json)\
@@ -141,6 +148,7 @@ static void test_parse_invalid_value() {
         EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, json));\
         EXPECT_EQ_INT(lobaNumber, lobajson.LobaGetType(&v));\
         EXPECT_EQ_DOUBLE(expect, lobajson.LobaGetNumber(&v));\
+        lobajson.LobaFree(&v); \
     } \
     while(0)
 
@@ -219,7 +227,8 @@ static void test_parse_number_too_big() {
         LobaJson lobajson;\
         EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, json));\
         EXPECT_EQ_INT(lobaString, lobajson.LobaGetType(&v));\
-        EXPECT_EQ_STRING(expect, lobajson.LobaGetString(&v), lobajson.LobaGetStringLength(&v));\
+        EXPECT_EQ_STRING(expect, lobajson.LobaGetString(&v), lobajson.LobaGetStringLength(&v)); \
+        lobajson.LobaFree(&v); \
     } \
     while(0)
 
@@ -228,6 +237,71 @@ static void test_parse_string() {
   TEST_STRING("Hello", "\"Hello\"");
 #if 0
 #endif
+}
+
+static void test_parse_missing_quotation_mark() {
+#if 0
+  TEST_ERROR(lobaParseMissQuotationMark, "\"");
+  TEST_ERROR(lobaParseMissQuotationMark, "\"abc");
+#endif
+}
+
+static void test_parse_invalid_string_escape() {
+#if 0
+  TEST_ERROR(lobaParseInvalidStringEscape, "\"\\v\"");
+  TEST_ERROR(lobaParseInvalidStringEscape, "\"\\'\"");
+  TEST_ERROR(lobaParseInvalidStringEscape, "\"\\0\"");
+  TEST_ERROR(lobaParseInvalidStringEscape, "\"\\x12\"");
+#endif
+}
+
+static void test_parse_invalid_string_char() {
+#if 0
+  TEST_ERROR(lobaParseInvalidStringChar, "\"\x01\"");
+  TEST_ERROR(lobaParseInvalidStringChar, "\"\x1F\"");
+#endif
+}
+
+// test_get_boolean
+static void test_get_boolean() {
+  LobaValue v;
+  v.type = lobaTestDefaultType;
+  LobaJson lobajson;
+//  EXPECT_EQ_INT(0, lobajson.LobaGetBoolean(&v));
+  lobajson.LobaSetBoolean(&v, LobaType::lobaFalse);
+  EXPECT_FALSE(lobajson.LobaGetBoolean(&v));
+  lobajson.LobaSetBoolean(&v, LobaType::lobaTrue);
+  EXPECT_TRUE(lobajson.LobaGetBoolean(&v));
+//  EXPECT_EQ_INT(1, lobajson.LobaGetBoolean(&v));
+}
+
+// test_get_number
+static void test_get_number() {
+  LobaValue v;
+  v.type = lobaTestDefaultType;
+  LobaInit(&v);
+  LobaJson lobajson;
+  lobajson.LobaSetString(&v, "a", 1);
+  lobajson.LobaSetNumber(&v, 1234.5);
+  EXPECT_EQ_DOUBLE(1234.5, lobajson.LobaGetNumber(&v));
+}
+
+// test_get_string
+static void test_get_string() {
+  LobaValue v;
+  LobaInit(&v);
+  LobaJson lobajson;
+  lobajson.LobaSetString(&v, "Hello", 5);
+  EXPECT_EQ_STRING("Hello", lobajson.LobaGetString(&v), lobajson.LobaGetStringLength(&v));
+  lobajson.LobaFree(&v);
+}
+
+static void test_get_null() {
+  LobaValue v;
+  v.type = lobaTestDefaultType;
+  LobaJson lobajson;
+  LobaInit(&v);
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
 }
 
 static void test_parse() {
@@ -244,6 +318,12 @@ static void test_parse() {
   test_parse_root_not_singularNumber();
   test_parse_number_too_big();
   test_parse_string();
+  test_parse_invalid_string_char();
+  test_parse_invalid_string_escape();
+  test_get_boolean();
+  test_get_number();
+  test_get_string();
+  test_get_null();
 }
 
 int main() {
