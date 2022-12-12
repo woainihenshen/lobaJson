@@ -7,7 +7,6 @@ pipeline {
              echo '检测代码质量'
               }
          }
-
         stage('Build') {
             steps {
             sh 'sh build.sh'
@@ -21,7 +20,6 @@ pipeline {
         stage('checkMemoryLeak') {
             steps {
             sh 'cd ${WORKSPACE}/build/tests && valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./lobaJsonTest'
-            }
             }
         }
         stage('Deploy') {
