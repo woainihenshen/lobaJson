@@ -235,19 +235,21 @@ static void test_parse_number_too_big() {
 static void test_parse_string() {
   TEST_STRING("", "\"\"");
   TEST_STRING("Hello", "\"Hello\"");
+  TEST_STRING("Hello\nWorld", "\"Hello\\nWorld\"");
+  TEST_STRING("\x24", "\"\\u0024\"");
 #if 0
 #endif
 }
 
 static void test_parse_missing_quotation_mark() {
-#if 0
+#if 1
   TEST_ERROR(lobaParseMissQuotationMark, "\"");
   TEST_ERROR(lobaParseMissQuotationMark, "\"abc");
 #endif
 }
 
 static void test_parse_invalid_string_escape() {
-#if 0
+#if 1
   TEST_ERROR(lobaParseInvalidStringEscape, "\"\\v\"");
   TEST_ERROR(lobaParseInvalidStringEscape, "\"\\'\"");
   TEST_ERROR(lobaParseInvalidStringEscape, "\"\\0\"");
@@ -256,10 +258,48 @@ static void test_parse_invalid_string_escape() {
 }
 
 static void test_parse_invalid_string_char() {
-#if 0
+#if 1
   TEST_ERROR(lobaParseInvalidStringChar, "\"\x01\"");
   TEST_ERROR(lobaParseInvalidStringChar, "\"\x1F\"");
 #endif
+}
+static void test_parse_string_invalid_unicode_hex() {
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u0\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u01\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u012\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u/000\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\uG000\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u0/00\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u0G00\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u00/0\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u00G0\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u000/\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u000G\"");
+  TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u 123\"");
+}
+
+
+
+
+static void test_parse() {
+  test_parse_null();
+  test_parse_true();
+  test_parse_false();
+  test_parse_whitespace();
+  test_parse_expect_value();
+  test_parse_expect_value_refactor();
+  test_parse_invalid_value();
+  test_parse_root_not_sigular();
+  test_parse_number();
+  test_parse_invalid_numberValue();
+  test_parse_root_not_singularNumber();
+  test_parse_number_too_big();
+  test_parse_string();
+  test_parse_missing_quotation_mark();
+  test_parse_invalid_string_char();
+  test_parse_invalid_string_escape();
+  test_parse_string_invalid_unicode_hex();
 }
 
 // test_get_boolean
@@ -304,30 +344,20 @@ static void test_get_null() {
   EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(&v));
 }
 
-static void test_parse() {
-  test_parse_null();
-  test_parse_true();
-  test_parse_false();
-  test_parse_whitespace();
-  test_parse_expect_value();
-  test_parse_expect_value_refactor();
-  test_parse_invalid_value();
-  test_parse_root_not_sigular();
-  test_parse_number();
-  test_parse_invalid_numberValue();
-  test_parse_root_not_singularNumber();
-  test_parse_number_too_big();
-  test_parse_string();
-  test_parse_invalid_string_char();
-  test_parse_invalid_string_escape();
+static void test_access() {
+  test_get_null();
   test_get_boolean();
   test_get_number();
   test_get_string();
-  test_get_null();
 }
+
+
+// test unicode
+
 
 int main() {
   test_parse();
+  test_access();
   printf("%d/%d (%3.2f%%) "
          "passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
   return main_ret;

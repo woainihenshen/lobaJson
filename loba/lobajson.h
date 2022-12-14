@@ -42,13 +42,19 @@ struct LobaValue {
 
 enum {
   lobaParseOk = 0,
+
   lobaParseExpectValue,
   lobaParseInvalidValue,
   lobaParseRootNotSingular,
+
   lobaParseNumberTooBig,
+
   lobaParseMissQuotationMark,
   lobaParseInvalidStringEscape,
-  lobaParseInvalidStringChar
+  lobaParseInvalidStringChar,
+
+  lobaParseInvalidUnicodeHex,
+  lobaParseInvalidUnicodeSurrogate
 };
 
 struct LobaContext {
@@ -97,6 +103,8 @@ class LobaJson {
 
  private:
   std::string parser_name_;
+  const char *LobaParseHex4(const char *p, unsigned int *p_int);
+  void LobaEncodeUtf8(LobaContext *p_context, unsigned int u);
 };
 
 inline int LobaJson::LobaParseValue(LobaContext *c, LobaValue *v) {
@@ -201,6 +209,8 @@ int LobaJson::LobaParseLiteral(LobaContext *c, LobaValue *v,
   v->type = type;
   return lobaParseOk;
 }
+
+#define  PUTC(c, ch) do { *(char*)LobaContextPush(c, sizeof(char)) = (ch); } while(0)
 int LobaJson::LobaParseString(LobaContext *c, LobaValue *v) {
   size_t head = c->top;
   size_t len = 0;
@@ -216,11 +226,57 @@ int LobaJson::LobaParseString(LobaContext *c, LobaValue *v) {
         return lobaParseOk;
       case '\0':c->top = head;
         return lobaParseMissQuotationMark;
-      default:auto ret = LobaContextPush(c, sizeof ch);
-        *(char *)ret = ch;
+      case '\\':
+        switch (*p++) {
+          case '\"':PUTC(c, '\"');
+            break;
+          case '\\':PUTC(c, '\\');
+            break;
+          case '/':PUTC(c, '/');
+            break;
+          case 'b':PUTC(c, '\b');
+            break;
+          case 'f':PUTC(c, '\f');
+            break;
+          case 'n':PUTC(c, '\n');
+            break;
+          case 'r':PUTC(c, '\r');
+            break;
+          case 't':PUTC(c, '\t');
+            break;
+          case 'u': {
+            unsigned u;
+            if (!(p = LobaParseHex4(p, &u)))
+              return lobaParseInvalidUnicodeHex;
+            if (u >= 0xD800 && u <= 0xDBFF) {
+              if (*p++ != '\\')
+                return lobaParseInvalidUnicodeSurrogate;
+              if (*p++ != 'u')
+                return lobaParseInvalidUnicodeSurrogate;
+              unsigned u2;
+              if (!(p = LobaParseHex4(p, &u2)))
+                return lobaParseInvalidUnicodeHex;
+              if (u2 < 0xDC00 || u2 > 0xDFFF)
+                return lobaParseInvalidUnicodeSurrogate;
+              u = (((u - 0xD800) << 10) | (u2 - 0xDC00)) + 0x10000;
+            }
+            LobaEncodeUtf8(c, u);
+            break;
+          }
+          default:c->top = head;
+            return lobaParseInvalidStringEscape;
+        }
+        break;
+      default:
+        if (static_cast<unsigned char>(ch) < 0x20) {
+          c->top = head;
+          return lobaParseInvalidStringChar;
+        }
+        PUTC(c, ch);
     }
   }
 }
+
 void LobaJson::LobaFree(LobaValue *p_value) {
   assert(p_value != nullptr);
   if (p_value->type == LobaType::lobaString) {
@@ -289,6 +345,43 @@ void *LobaJson::LobaContextPush(LobaContext *c, size_t size) {
 void *LobaJson::LobaContextPop(LobaContext *c, size_t size) {
   assert(c->top >= size);
   return c->stack + (c->top -= size);
+}
+
+// 4位16进制字符转换为一个16进制数 /u0001
+const char *LobaJson::LobaParseHex4(const char *p, unsigned int *p_int) {
+    *p_int = 0;
+    for (int i = 0; i < 4; i++) {
+        char ch = *p++;
+        *p_int <<= 4;
+        if (ch >= '0' && ch <= '9') {
+        *p_int |= ch - '0';
+        } else if (ch >= 'A' && ch <= 'F') {
+        *p_int |= ch - ('A' - 10);
+        } else if (ch >= 'a' && ch <= 'f') {
+        *p_int |= ch - ('a' - 10);
+        } else {
+        return nullptr;
+        }
+    }
+    return p;
+}
+void LobaJson::LobaEncodeUtf8(LobaContext *p_context, unsigned int u) {
+    if (u <= 0x7F) {
+        PUTC(p_context, u & 0xFF);
+    } else if (u <= 0x7FF) {
+        PUTC(p_context, 0xC0 | ((u >> 6) & 0xFF));
+        PUTC(p_context, 0x80 | (u & 0x3F));
+    } else if (u <= 0xFFFF) {
+        PUTC(p_context, 0xE0 | ((u >> 12) & 0xFF));
+        PUTC(p_context, 0x80 | ((u >> 6) & 0x3F));
+        PUTC(p_context, 0x80 | (u & 0x3F));
+    } else {
+        assert(u <= 0x10FFFF);
+        PUTC(p_context, 0xF0 | ((u >> 18) & 0xFF));
+        PUTC(p_context, 0x80 | ((u >> 12) & 0x3F));
+        PUTC(p_context, 0x80 | ((u >> 6) & 0x3F));
+        PUTC(p_context, 0x80 | (u & 0x3F));
+    }
 }
 
 #endif  // LOBAJSON_H_
