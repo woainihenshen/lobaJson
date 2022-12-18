@@ -237,7 +237,12 @@ static void test_parse_string() {
   TEST_STRING("Hello", "\"Hello\"");
   TEST_STRING("Hello\nWorld", "\"Hello\\nWorld\"");
   TEST_STRING("\x24", "\"\\u0024\"");
-#if 0
+  TEST_STRING("\xC2\xA2", "\"\\u00A2\"");
+  TEST_STRING("\xE2\x82\xAC", "\"\\u20AC\"");
+  TEST_STRING("\xF0\x9D\x84\x9E", "\"\\uD834\\uDD1E\"");
+  TEST_STRING("\xF0\x9D\x84\x9E", "\"\\ud834\\udd1e\"");
+#if 1
+  printf("\x24\n");
 #endif
 }
 
@@ -279,8 +284,72 @@ static void test_parse_string_invalid_unicode_hex() {
   TEST_ERROR(lobaParseInvalidUnicodeHex, "\"\\u 123\"");
 }
 
+// test parse invalid unicode surrogate
+static void test_parse_string_invalid_unicode_surrogate() {
+  TEST_ERROR(lobaParseInvalidUnicodeSurrogate, "\"\\uD800\"");
+  TEST_ERROR(lobaParseInvalidUnicodeSurrogate, "\"\\uDBFF\"");
+  TEST_ERROR(lobaParseInvalidUnicodeSurrogate, "\"\\uD800\\\\\"");
+  TEST_ERROR(lobaParseInvalidUnicodeSurrogate, "\"\\uD800\\uDBFF\"");
+  TEST_ERROR(lobaParseInvalidUnicodeSurrogate, "\"\\uD800\\uE000\"");
+}
 
+#if defined(_MSC_VER)
+#define EXPECT_EQ_SIZE_T(expect, actual) EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, "%Iu")
+#else
+#define EXPECT_EQ_SIZE_T(expect, actual) EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, "%zu")
+#endif
 
+// test_parse_arrary
+static void test_parse_array() {
+  size_t i, j;
+  LobaValue v;
+  v.type = lobaTestDefaultType;
+  LobaInit(&v);
+  LobaJson lobajson;
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "[ ]"));
+  EXPECT_EQ_INT(lobaArray, lobajson.LobaGetType(&v));
+  EXPECT_EQ_SIZE_T(0, lobajson.LobaGetArraySize(&v));
+  lobajson.LobaFree(&v);
+
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "[ null , false , true , 123 , \"abc\" ]"));
+  EXPECT_EQ_INT(lobaArray, lobajson.LobaGetType(&v));
+  EXPECT_EQ_SIZE_T(5, lobajson.LobaGetArraySize(&v));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(lobajson.LobaGetArrayElement(&v, 0)));
+  EXPECT_EQ_INT(lobaFalse, lobajson.LobaGetType(lobajson.LobaGetArrayElement(&v, 1)));
+  EXPECT_EQ_INT(lobaTrue, lobajson.LobaGetType(lobajson.LobaGetArrayElement(&v, 2)));
+  EXPECT_EQ_INT(lobaNumber, lobajson.LobaGetType(lobajson.LobaGetArrayElement(&v, 3)));
+  EXPECT_EQ_INT(lobaString, lobajson.LobaGetType(lobajson.LobaGetArrayElement(&v, 4)));
+  lobajson.LobaFree(&v);
+
+  LobaInit(&v);
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, "[ [ ] , [ 0 ] , [ 0 , 1 ] , [ 0 , 1 , 2 ] ]"));
+  EXPECT_EQ_INT(lobaArray, lobajson.LobaGetType(&v));
+  for (i = 0; i < 4; i++) {
+    LobaValue *a = lobajson.LobaGetArrayElement(&v, i);
+    EXPECT_EQ_INT(lobaArray, lobajson.LobaGetType(a));
+    EXPECT_EQ_SIZE_T(i, lobajson.LobaGetArraySize(a));
+    for (j = 0; j < i; j++) {
+      LobaValue *e = lobajson.LobaGetArrayElement(a, j);
+      EXPECT_EQ_INT(lobaNumber, lobajson.LobaGetType(e));
+      EXPECT_EQ_DOUBLE((double)j, lobajson.LobaGetNumber(e));
+    }
+  }
+  lobajson.LobaFree(&v);
+}
+
+// test_parse_invalid_array
+static void test_parse_invalid_array() {
+#if 1
+  TEST_ERROR(lobaParseInvalidValue, "[1,]");
+  TEST_ERROR(lobaParseInvalidValue, "[\"a\", nul]");
+#endif
+#if 1
+  TEST_ERROR(lobaParseMissCommaOrSquareBracket, "[1");
+  TEST_ERROR(lobaParseMissCommaOrSquareBracket, "[1}");
+  TEST_ERROR(lobaParseMissCommaOrSquareBracket, "[1 2");
+  TEST_ERROR(lobaParseMissCommaOrSquareBracket, "[[]");
+#endif
+}
 
 static void test_parse() {
   test_parse_null();
@@ -300,6 +369,9 @@ static void test_parse() {
   test_parse_invalid_string_char();
   test_parse_invalid_string_escape();
   test_parse_string_invalid_unicode_hex();
+  test_parse_string_invalid_unicode_surrogate();
+  test_parse_array();
+  test_parse_invalid_array();
 }
 
 // test_get_boolean

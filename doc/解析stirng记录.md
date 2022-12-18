@@ -1,6 +1,7 @@
-
 #### Unicode解析
+计算机是用来发明解析东西的
 
+###### 4位16进制字符串转为 整数
 ```c++
 // 4位16进制字符转换为一个unsigned int /u0024
 // 0000,0000 0000,0000 0000,0000 0000,0000 0000,0000
@@ -26,3 +27,5 @@ const char *LobaJson::LobaParseHex4(const char *p, unsigned int *p_int) {
 ```
 
 ![image](./image/ASCII.png)
+
+###### unicode解析
