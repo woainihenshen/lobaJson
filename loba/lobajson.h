@@ -28,26 +28,37 @@ enum LobaType {
 };
 
 struct LobaValue;
+struct LobaMember;
 
 union U {
   struct {
     char *s;
     size_t len;
   } s;
-
   // 这是个声明 还是实体？
   // 表达不清晰
-  // double n;
+  // double n; 懂了 哦
   struct {
     LobaValue *e;
     size_t size;
   } a;
+  struct {
+    LobaMember *m;
+    size_t size;
+  } o;
   double n;
 };
 
 struct LobaValue {
   U u;
   LobaType type;
+};
+
+// member
+struct LobaMember {
+  char *k;
+  size_t klen;
+  LobaValue v;
 };
 
 enum {
@@ -66,7 +77,11 @@ enum {
   lobaParseInvalidUnicodeHex,
   lobaParseInvalidUnicodeSurrogate,
 
-  lobaParseMissCommaOrSquareBracket
+  lobaParseMissCommaOrSquareBracket,
+
+  lobaParseMissKey,
+  lobaParseMissCommaOrCurlyBracket,
+  lobaParseMissColon
 };
 
 struct LobaContext {
@@ -95,9 +110,15 @@ class LobaJson {
   const char *LobaGetString(const LobaValue *v);
   void LobaSetString(LobaValue *v, const char *s, size_t len);
   size_t LobaGetStringLength(const LobaValue *v);
+  int LobaParseStringRaw(LobaContext *c, char **str, size_t *len);
 
   size_t LobaGetArraySize(const LobaValue *v);
   LobaValue *LobaGetArrayElement(const LobaValue *v, size_t index);
+
+  size_t LobaGetObjectSize(const LobaValue *v);
+  const char *LobaGetObjectKey(const LobaValue *v, size_t index);
+  size_t LobaGetObjectKeyLength(const LobaValue *v, size_t index);
+  LobaValue *LobaGetObjectValue(const LobaValue *v, size_t index);
 
  protected:
   int LobaParseValue(LobaContext *c, LobaValue *v);
@@ -111,6 +132,8 @@ class LobaJson {
 
   int LobaParseString(LobaContext *c, LobaValue *v);
   int LobaParseArray(LobaContext *c, LobaValue *v);
+
+  int LobaParseObject(LobaContext *c, LobaValue *v);
 
  private:
   void *LobaContextPush(LobaContext *c, size_t size);
@@ -130,6 +153,7 @@ inline int LobaJson::LobaParseValue(LobaContext *c, LobaValue *v) {
     case 'f':return LobaParseLiteral(c, v, "false", LobaType::lobaFalse);
     case '"': return LobaParseString(c, v);
     case '[': return LobaParseArray(c, v);
+    case '{': return LobaParseObject(c, v);
     case '\0':return lobaParseExpectValue;
     default:return LobaParseNumber(c, v);
   }
@@ -300,16 +324,22 @@ void LobaJson::LobaFree(LobaValue *p_value) {
   assert(p_value != nullptr);
   size_t i;
   switch (p_value->type) {
-        case LobaType::lobaString:
-        free(p_value->u.s.s);
-        break;
-        case LobaType::lobaArray:
-        for (i = 0; i < p_value->u.a.size; i++) {
-            LobaFree(&p_value->u.a.e[i]);
+    case LobaType::lobaString:free(p_value->u.s.s);
+      break;
+    case LobaType::lobaArray:
+      for (i = 0; i < p_value->u.a.size; i++) {
+        LobaFree(&p_value->u.a.e[i]);
+      }
+      free(p_value->u.a.e);
+      break;
+    case LobaType::lobaObject:
+        for (i = 0; i < p_value->u.o.size; i++) {
+            free(p_value->u.o.m[i].k);
+            LobaFree(&p_value->u.o.m[i].v);
         }
-        free(p_value->u.a.e);
+        free(p_value->u.o.m);
         break;
-    }
+  }
   p_value->type = LobaType::lobaNull;
 }
 
@@ -454,14 +484,167 @@ int LobaJson::LobaParseArray(LobaContext *c, LobaValue *v) {
       memcpy(v->u.a.e = (LobaValue *)malloc(size), LobaContextPop(c, size), size);
       return lobaParseOk;
     } else {
-      c->top =0;
+      c->top = 0;
       return lobaParseMissCommaOrSquareBracket;
     }
   }
-    for (size_t i = 0; i < size; i++) {
-        LobaFree((LobaValue *)LobaContextPop(c, sizeof(LobaValue)));
+  for (size_t i = 0; i < size; i++) {
+    LobaFree((LobaValue *)LobaContextPop(c, sizeof(LobaValue)));
+  }
+  return ret;
+}
+
+int LobaJson::LobaParseObject(LobaContext *c, LobaValue *v) {
+  size_t size;
+  LobaMember m;
+  int ret;
+  EXPECT(c, '{');
+  LobaParseWhitespace(c);
+  if (*c->json == '}') {
+    c->json++;
+    v->type = LobaType::lobaObject;
+    v->u.o.size = 0;
+    v->u.o.m = nullptr;
+    return lobaParseOk;
+  }
+  m.k = nullptr;
+  size = 0;
+  for (;;) {
+    char *str;
+    LobaInit(&m.v);
+    LobaParseWhitespace(c);
+    if (*c->json != '"') {
+      ret = lobaParseMissKey;
+      break;
     }
-    return ret;
+    if ((ret = LobaParseStringRaw(c, &str, &m.klen)) != lobaParseOk) {
+      break;
+    }
+    memcpy(m.k = (char*)malloc(m.klen + 1), str, m.klen);
+    m.k[m.klen] = '\0';
+
+    LobaParseWhitespace(c);
+    if (*c->json != ':') {
+      ret = lobaParseMissColon;
+      break;
+    }
+    c->json++;
+    LobaParseWhitespace(c);
+
+    if ((ret = LobaParseValue(c, &m.v)) != lobaParseOk) {
+      break;
+    }
+    memcpy(LobaContextPush(c, sizeof(LobaMember)), &m, sizeof(LobaMember));
+    size++;
+    m.k = nullptr;
+
+    LobaParseWhitespace(c);
+    if (*c->json == ',') {
+      c->json++;
+    } else if (*c->json == '}') {
+      c->json++;
+      v->type = LobaType::lobaObject;
+      v->u.o.size = size;
+      size *= sizeof(LobaMember);
+      memcpy(v->u.o.m = (LobaMember *)malloc(size), LobaContextPop(c, size), size);
+      return lobaParseOk;
+    } else {
+      ret = lobaParseMissCommaOrCurlyBracket;
+      break;
+    }
+  }
+  free(m.k);
+  for (size_t i = 0; i < size; i++) {
+    LobaMember *m = (LobaMember *)LobaContextPop(c, sizeof(LobaMember));
+    free(m->k);
+    LobaFree(&m->v);
+  }
+  v->type = lobaNull;
+  return ret;
+}
+
+size_t LobaJson::LobaGetObjectSize(const LobaValue *v) {
+  assert(v != nullptr && v->type == LobaType::lobaObject);
+  return v->u.o.size;
+}
+const char *LobaJson::LobaGetObjectKey(const LobaValue *v, size_t index) {
+  assert(v != nullptr && v->type == LobaType::lobaObject);
+  assert(index < v->u.o.size);
+  return v->u.o.m[index].k;
+}
+size_t LobaJson::LobaGetObjectKeyLength(const LobaValue *v, size_t index) {
+  assert(v != nullptr && v->type == LobaType::lobaObject);
+  assert(index < v->u.o.size);
+  return v->u.o.m[index].klen;
+}
+LobaValue *LobaJson::LobaGetObjectValue(const LobaValue *v, size_t index) {
+  assert(v != nullptr && v->type == LobaType::lobaObject);
+  assert(index < v->u.o.size);
+  return &v->u.o.m[index].v;
+}
+int LobaJson::LobaParseStringRaw(LobaContext *c, char **str, size_t *len) {
+  size_t head = c->top;
+  const char *p;
+  EXPECT(c, '\"');
+  p = c->json;
+  for (;;) {
+    char ch = *p++;
+    switch (ch) {
+      case '\"':*len = c->top - head;
+        *str = (char*)LobaContextPop(c, *len);
+        c->json = p;
+        return lobaParseOk;
+      case '\0':c->top = head;
+        return lobaParseMissQuotationMark;
+      case '\\':
+        switch (*p++) {
+          case '\"':PUTC(c, '\"');
+            break;
+          case '\\':PUTC(c, '\\');
+            break;
+          case '/':PUTC(c, '/');
+            break;
+          case 'b':PUTC(c, '\b');
+            break;
+          case 'f':PUTC(c, '\f');
+            break;
+          case 'n':PUTC(c, '\n');
+            break;
+          case 'r':PUTC(c, '\r');
+            break;
+          case 't':PUTC(c, '\t');
+            break;
+          case 'u': {
+            unsigned u;
+            if (!(p = LobaParseHex4(p, &u)))
+              STRING_ERROR(lobaParseInvalidUnicodeHex);
+            if (u >= 0xD800 && u <= 0xDBFF) {
+              if (*p++ != '\\')
+                STRING_ERROR(lobaParseInvalidUnicodeSurrogate);
+              if (*p++ != 'u')
+                STRING_ERROR(lobaParseInvalidUnicodeSurrogate);
+              unsigned u2;
+              if (!(p = LobaParseHex4(p, &u2)))
+                STRING_ERROR(lobaParseInvalidUnicodeHex);
+              if (u2 < 0xDC00 || u2 > 0xDFFF)
+                STRING_ERROR(lobaParseInvalidUnicodeSurrogate);
+              u = (((u - 0xD800) << 10) | (u2 - 0xDC00)) + 0x10000;
+            }
+            LobaEncodeUtf8(c, u);
+            break;
+          }
+          default:c->top = head;
+            return lobaParseInvalidStringEscape;
+        }
+        break;
+      default:
+        if (static_cast<unsigned char>(ch) < 0x20) {
+          c->top = head;
+          return lobaParseInvalidStringChar;
+        }
+        PUTC(c, ch);
+    }
+  }
 }
 
 #endif  // LOBAJSON_H_

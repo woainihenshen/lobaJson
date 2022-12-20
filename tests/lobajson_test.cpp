@@ -351,6 +351,75 @@ static void test_parse_invalid_array() {
 #endif
 }
 
+// test_parse_object
+static void test_parse_object() {
+  LobaValue v;
+  v.type = lobaTestDefaultType;
+  LobaInit(&v);
+  LobaJson lobajson;
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, " { } "));
+  EXPECT_EQ_INT(lobaObject, lobajson.LobaGetType(&v));
+  EXPECT_EQ_SIZE_T(0, lobajson.LobaGetObjectSize(&v));
+  lobajson.LobaFree(&v);
+
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v,
+                                                " { "
+                                                "\"n\" : null , "
+                                                "\"f\" : false , "
+                                                "\"t\" : true , "
+                                                "\"i\" : 123 , "
+                                                "\"s\" : \"abc\", "
+                                                "\"a\" : [ 1, 2, 3 ], "
+                                                "\"o\" : { \"1\" : 1, \"2\" : 2, \"3\" : 3 } "
+                                                "} "
+  ));
+  EXPECT_EQ_INT(lobaObject, lobajson.LobaGetType(&v));
+  EXPECT_EQ_SIZE_T(7, lobajson.LobaGetObjectSize(&v));
+  EXPECT_EQ_STRING("n", lobajson.LobaGetObjectKey(&v, 0), lobajson.LobaGetObjectKeyLength(&v, 0));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(lobajson.LobaGetObjectValue(&v, 0)));
+  EXPECT_EQ_STRING("f", lobajson.LobaGetObjectKey(&v, 1), lobajson.LobaGetObjectKeyLength(&v, 1));
+  EXPECT_EQ_INT(lobaFalse, lobajson.LobaGetType(lobajson.LobaGetObjectValue(&v, 1)));
+  EXPECT_EQ_STRING("t", lobajson.LobaGetObjectKey(&v, 2), lobajson.LobaGetObjectKeyLength(&v, 2));
+  EXPECT_EQ_INT(lobaTrue, lobajson.LobaGetType(lobajson.LobaGetObjectValue(&v, 2)));
+  EXPECT_EQ_STRING("i", lobajson.LobaGetObjectKey(&v, 3), lobajson.LobaGetObjectKeyLength(&v, 3));
+  EXPECT_EQ_INT(lobaNumber, lobajson.LobaGetType(lobajson.LobaGetObjectValue(&v, 3)));
+  EXPECT_EQ_DOUBLE(123.0, lobajson.LobaGetNumber(lobajson.LobaGetObjectValue(&v, 3)));
+  EXPECT_EQ_STRING("s", lobajson.LobaGetObjectKey(&v, 4), lobajson.LobaGetObjectKeyLength(&v, 4));
+  EXPECT_EQ_INT(lobaString, lobajson.LobaGetType(lobajson.LobaGetObjectValue(&v, 4)));
+  EXPECT_EQ_STRING("abc",
+                   lobajson.LobaGetString(lobajson.LobaGetObjectValue(&v, 4)),
+                   lobajson.LobaGetStringLength(lobajson.LobaGetObjectValue(&v, 4)));
+
+  EXPECT_EQ_STRING("a", lobajson.LobaGetObjectKey(&v, 5), lobajson.LobaGetObjectKeyLength(&v, 5));
+  {
+    LobaValue *a = lobajson.LobaGetObjectValue(&v, 5);
+    EXPECT_EQ_INT(lobaArray, lobajson.LobaGetType(a));
+    EXPECT_EQ_SIZE_T(3, lobajson.LobaGetArraySize(a));
+    size_t i;
+    for (i = 0; i < 3; i++) {
+      LobaValue *e = lobajson.LobaGetArrayElement(a, i);
+      EXPECT_EQ_INT(lobaNumber, lobajson.LobaGetType(e));
+      EXPECT_EQ_DOUBLE((double)i + 1.0, lobajson.LobaGetNumber(e));
+    }
+  }
+
+  EXPECT_EQ_STRING("o", lobajson.LobaGetObjectKey(&v, 6), lobajson.LobaGetObjectKeyLength(&v, 6));
+  {
+    LobaValue *o = lobajson.LobaGetObjectValue(&v, 6);
+    EXPECT_EQ_INT(lobaObject, lobajson.LobaGetType(o));
+    EXPECT_EQ_SIZE_T(3, lobajson.LobaGetObjectSize(o));
+    size_t i;
+    for (i = 0; i < 3; i++) {
+      LobaValue *ov = lobajson.LobaGetObjectValue(o, i);
+      EXPECT_TRUE('1' + i == lobajson.LobaGetObjectKey(o, i)[0]);
+      EXPECT_EQ_SIZE_T(1, lobajson.LobaGetObjectKeyLength(o, i));
+      EXPECT_EQ_INT(lobaNumber, lobajson.LobaGetType(ov));
+      EXPECT_EQ_DOUBLE((double)i + 1.0, lobajson.LobaGetNumber(ov));
+    }
+  }
+  lobajson.LobaFree(&v);
+}
+
 static void test_parse() {
   test_parse_null();
   test_parse_true();
@@ -372,6 +441,7 @@ static void test_parse() {
   test_parse_string_invalid_unicode_surrogate();
   test_parse_array();
   test_parse_invalid_array();
+  test_parse_object();
 }
 
 // test_get_boolean
