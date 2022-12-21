@@ -97,6 +97,7 @@ class LobaJson {
   LobaJson() = default;
   ~LobaJson() = default;
   int LobaParse(LobaValue *v, const char *json);
+  char *LobaStringify(const LobaValue *v, size_t *length);
   LobaType LobaGetType(const LobaValue *v);
 
   void LobaFree(LobaValue *p_value);
@@ -144,6 +145,12 @@ class LobaJson {
   std::string parser_name_;
   const char *LobaParseHex4(const char *p, unsigned int *p_int);
   void LobaEncodeUtf8(LobaContext *p_context, unsigned int u);
+
+  void LobaStringifyValue(LobaContext *p_context, const LobaValue *p_value);
+  void LobaStringifyNumber(LobaContext *p_context, const LobaValue *p_value);
+  void LobaStringifyString(LobaContext *p_context, char *s, size_t len);
+  void LobaStringifyArray(LobaContext *p_context, const LobaValue *p_value);
+  void LobaStringifyObject(LobaContext *p_context, const LobaValue *p_value);
 };
 
 inline int LobaJson::LobaParseValue(LobaContext *c, LobaValue *v) {
@@ -253,6 +260,7 @@ int LobaJson::LobaParseLiteral(LobaContext *c, LobaValue *v,
 }
 
 #define  PUTC(c, ch) do { *(char*)LobaContextPush(c, sizeof(char)) = (ch); } while(0)
+#define PUTS(c, s, len)     memcpy(LobaContextPush(c, len), s, len)
 #define STRING_ERROR(ret) do { c->top = head; return ret; } while(0)
 int LobaJson::LobaParseString(LobaContext *c, LobaValue *v) {
   size_t head = c->top;
@@ -333,12 +341,12 @@ void LobaJson::LobaFree(LobaValue *p_value) {
       free(p_value->u.a.e);
       break;
     case LobaType::lobaObject:
-        for (i = 0; i < p_value->u.o.size; i++) {
-            free(p_value->u.o.m[i].k);
-            LobaFree(&p_value->u.o.m[i].v);
-        }
-        free(p_value->u.o.m);
-        break;
+      for (i = 0; i < p_value->u.o.size; i++) {
+        free(p_value->u.o.m[i].k);
+        LobaFree(&p_value->u.o.m[i].v);
+      }
+      free(p_value->u.o.m);
+      break;
   }
   p_value->type = LobaType::lobaNull;
 }
@@ -520,7 +528,7 @@ int LobaJson::LobaParseObject(LobaContext *c, LobaValue *v) {
     if ((ret = LobaParseStringRaw(c, &str, &m.klen)) != lobaParseOk) {
       break;
     }
-    memcpy(m.k = (char*)malloc(m.klen + 1), str, m.klen);
+    memcpy(m.k = (char *)malloc(m.klen + 1), str, m.klen);
     m.k[m.klen] = '\0';
 
     LobaParseWhitespace(c);
@@ -591,7 +599,7 @@ int LobaJson::LobaParseStringRaw(LobaContext *c, char **str, size_t *len) {
     char ch = *p++;
     switch (ch) {
       case '\"':*len = c->top - head;
-        *str = (char*)LobaContextPop(c, *len);
+        *str = (char *)LobaContextPop(c, *len);
         c->json = p;
         return lobaParseOk;
       case '\0':c->top = head;
@@ -645,6 +653,94 @@ int LobaJson::LobaParseStringRaw(LobaContext *c, char **str, size_t *len) {
         PUTC(c, ch);
     }
   }
+}
+void LobaJson::LobaStringifyValue(LobaContext *p_context, const LobaValue *p_value) {
+    switch (p_value->type) {
+        case LobaType::lobaNull:PUTS(p_context, "null", 4);
+        break;
+        case LobaType::lobaFalse:PUTS(p_context, "false", 5);
+        break;
+        case LobaType::lobaTrue:PUTS(p_context, "true", 4);
+        break;
+        case LobaType::lobaNumber:LobaStringifyNumber(p_context, p_value);
+        break;
+        case LobaType::lobaString:LobaStringifyString(p_context, p_value->u.s.s, p_value->u.s.len);
+        break;
+        case LobaType::lobaArray:LobaStringifyArray(p_context, p_value);
+        break;
+        case LobaType::lobaObject:LobaStringifyObject(p_context, p_value);
+        break;
+        default:break;
+    }
+}
+char *LobaJson::LobaStringify(const LobaValue *v, size_t *length) {
+    LobaContext c;
+    assert(v != nullptr);
+    c.stack = (char *)malloc(c.size = LobaContextStackSize);
+    c.top = 0;
+    LobaStringifyValue(&c, v);
+    if (length)
+        *length = c.top;
+    PUTC(&c, '\0');
+    return c.stack;
+}
+void LobaJson::LobaStringifyNumber(LobaContext *p_context, const LobaValue *p_value) {
+    char buffer[32];
+    int length = sprintf(buffer, "%.17g", p_value->u.n);
+    PUTS(p_context, buffer, static_cast<size_t>(length));
+}
+void LobaJson::LobaStringifyString(LobaContext *p_context, char *s, size_t len) {
+    assert(s != nullptr);
+    PUTC(p_context, '\"');
+    for (size_t i = 0; i < len; i++) {
+        unsigned char ch = static_cast<unsigned char>(s[i]);
+        switch (ch) {
+            case '\"':PUTS(p_context, "\\\"", 2);
+            break;
+            case '\\':PUTS(p_context, "\\\\", 2);
+            break;
+            case '\b':PUTS(p_context, "\\b", 2);
+            break;
+            case '\f':PUTS(p_context, "\\f", 2);
+            break;
+            case '\n':PUTS(p_context, "\\n", 2);
+            break;
+            case '\r':PUTS(p_context, "\\r", 2);
+            break;
+            case '\t':PUTS(p_context, "\\t", 2);
+            break;
+            default:
+                if (ch < 0x20) {
+                    char buffer[7];
+                    sprintf(buffer, "\\u%04X", ch);
+                    PUTS(p_context, buffer, 6);
+                } else
+                    PUTC(p_context, s[i]);
+        }
+    }
+    PUTC(p_context, '\"');
+}
+void LobaJson::LobaStringifyArray(LobaContext *p_context, const LobaValue *p_value) {
+    assert(p_value != nullptr);
+    PUTC(p_context, '[');
+    for (size_t i = 0; i < p_value->u.a.size; i++) {
+        if (i > 0)
+            PUTC(p_context, ',');
+        LobaStringifyValue(p_context, &p_value->u.a.e[i]);
+    }
+    PUTC(p_context, ']');
+}
+void LobaJson::LobaStringifyObject(LobaContext *p_context, const LobaValue *p_value) {
+    assert(p_value != nullptr);
+    PUTC(p_context, '{');
+    for (size_t i = 0; i < p_value->u.o.size; i++) {
+        if (i > 0)
+            PUTC(p_context, ',');
+        LobaStringifyString(p_context, p_value->u.o.m[i].k, p_value->u.o.m[i].klen);
+        PUTC(p_context, ':');
+        LobaStringifyValue(p_context, &p_value->u.o.m[i].v);
+    }
+    PUTC(p_context, '}');
 }
 
 #endif  // LOBAJSON_H_
