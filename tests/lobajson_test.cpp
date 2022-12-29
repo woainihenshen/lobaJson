@@ -547,11 +547,9 @@ static void test_stringify_array() {
 
 static void test_stringify_object() {
   TEST_ROUNDTRIP("{}");
-  TEST_ROUNDTRIP("{\"n\":null,\"f\":false,\"t\":true,\"i\":123,\"s\":\"abc\",\"a\":[1,2,3],\"o\":{\"1\":1,\"2\":2,\"3\":3}}");
+  TEST_ROUNDTRIP(
+      "{\"n\":null,\"f\":false,\"t\":true,\"i\":123,\"s\":\"abc\",\"a\":[1,2,3],\"o\":{\"1\":1,\"2\":2,\"3\":3}}");
 }
-
-
-
 
 static void test_stringify() {
   TEST_ROUNDTRIP("null");
@@ -563,14 +561,23 @@ static void test_stringify() {
   test_stringify_object();
 }
 
-static  void TestWholeOperator() {
+static void TestWholeOperator() {
   LobaJson lobajson;
   LobaValue v;
-  lobajson.LobaParse(&v, "{\"n\":null,\"f\":false,\"t\":true,\"i\":123,\"s\":\"abc\",\"a\":[1,2,3],\"o\":{\"1\":1,\"2\":2,\"3\":3}}");
+  lobajson.LobaParse(&v,
+                     "{\"n\":null,\"f\":false,\"t\":true,\"i\":123,\"s\":\"abc\",\"a\":[1,2,3],\"o\":{\"1\":1,\"2\":2,\"3\":3}}");
   char *s = lobajson.LobaStringify(&v, nullptr);
   printf("%s", s);
   lobajson.LobaFree(&v);
   free(s);
+}
+
+static void test_double_colon() {
+  const char *s = "123\"";
+  char buff[32];
+  buff[0] = '"';
+  printf("%c\n", buff[0]);
+  printf("\u0022");
 }
 
 int main() {
@@ -581,6 +588,10 @@ int main() {
   TestWholeOperator();
   printf("\n");
   printf("================\n");
+  printf("===xxx==========\n");
+  test_double_colon();
+  printf("\n");
+  printf("===xxx==========\n");
   printf("%d/%d (%3.2f%%) "
          "passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
   return main_ret;
