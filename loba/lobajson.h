@@ -691,7 +691,7 @@ void LobaJson::LobaStringifyNumber(LobaContext *p_context, const LobaValue *p_va
 }
 void LobaJson::LobaStringifyString(LobaContext *p_context, char *s, size_t len) {
     assert(s != nullptr);
-    PUTC(p_context, '\"');
+    PUTC(p_context, '"');
     for (size_t i = 0; i < len; i++) {
         unsigned char ch = static_cast<unsigned char>(s[i]);
         switch (ch) {
@@ -718,7 +718,7 @@ void LobaJson::LobaStringifyString(LobaContext *p_context, char *s, size_t len) 
                     PUTC(p_context, s[i]);
         }
     }
-    PUTC(p_context, '\"');
+    PUTC(p_context, '"');
 }
 void LobaJson::LobaStringifyArray(LobaContext *p_context, const LobaValue *p_value) {
     assert(p_value != nullptr);
