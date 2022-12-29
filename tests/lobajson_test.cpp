@@ -351,6 +351,75 @@ static void test_parse_invalid_array() {
 #endif
 }
 
+// test_parse_object
+static void test_parse_object() {
+  LobaValue v;
+  v.type = lobaTestDefaultType;
+  LobaInit(&v);
+  LobaJson lobajson;
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, " { } "));
+  EXPECT_EQ_INT(lobaObject, lobajson.LobaGetType(&v));
+  EXPECT_EQ_SIZE_T(0, lobajson.LobaGetObjectSize(&v));
+  lobajson.LobaFree(&v);
+
+  EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v,
+                                                " { "
+                                                "\"n\" : null , "
+                                                "\"f\" : false , "
+                                                "\"t\" : true , "
+                                                "\"i\" : 123 , "
+                                                "\"s\" : \"abc\", "
+                                                "\"a\" : [ 1, 2, 3 ], "
+                                                "\"o\" : { \"1\" : 1, \"2\" : 2, \"3\" : 3 } "
+                                                "} "
+  ));
+  EXPECT_EQ_INT(lobaObject, lobajson.LobaGetType(&v));
+  EXPECT_EQ_SIZE_T(7, lobajson.LobaGetObjectSize(&v));
+  EXPECT_EQ_STRING("n", lobajson.LobaGetObjectKey(&v, 0), lobajson.LobaGetObjectKeyLength(&v, 0));
+  EXPECT_EQ_INT(lobaNull, lobajson.LobaGetType(lobajson.LobaGetObjectValue(&v, 0)));
+  EXPECT_EQ_STRING("f", lobajson.LobaGetObjectKey(&v, 1), lobajson.LobaGetObjectKeyLength(&v, 1));
+  EXPECT_EQ_INT(lobaFalse, lobajson.LobaGetType(lobajson.LobaGetObjectValue(&v, 1)));
+  EXPECT_EQ_STRING("t", lobajson.LobaGetObjectKey(&v, 2), lobajson.LobaGetObjectKeyLength(&v, 2));
+  EXPECT_EQ_INT(lobaTrue, lobajson.LobaGetType(lobajson.LobaGetObjectValue(&v, 2)));
+  EXPECT_EQ_STRING("i", lobajson.LobaGetObjectKey(&v, 3), lobajson.LobaGetObjectKeyLength(&v, 3));
+  EXPECT_EQ_INT(lobaNumber, lobajson.LobaGetType(lobajson.LobaGetObjectValue(&v, 3)));
+  EXPECT_EQ_DOUBLE(123.0, lobajson.LobaGetNumber(lobajson.LobaGetObjectValue(&v, 3)));
+  EXPECT_EQ_STRING("s", lobajson.LobaGetObjectKey(&v, 4), lobajson.LobaGetObjectKeyLength(&v, 4));
+  EXPECT_EQ_INT(lobaString, lobajson.LobaGetType(lobajson.LobaGetObjectValue(&v, 4)));
+  EXPECT_EQ_STRING("abc",
+                   lobajson.LobaGetString(lobajson.LobaGetObjectValue(&v, 4)),
+                   lobajson.LobaGetStringLength(lobajson.LobaGetObjectValue(&v, 4)));
+
+  EXPECT_EQ_STRING("a", lobajson.LobaGetObjectKey(&v, 5), lobajson.LobaGetObjectKeyLength(&v, 5));
+  {
+    LobaValue *a = lobajson.LobaGetObjectValue(&v, 5);
+    EXPECT_EQ_INT(lobaArray, lobajson.LobaGetType(a));
+    EXPECT_EQ_SIZE_T(3, lobajson.LobaGetArraySize(a));
+    size_t i;
+    for (i = 0; i < 3; i++) {
+      LobaValue *e = lobajson.LobaGetArrayElement(a, i);
+      EXPECT_EQ_INT(lobaNumber, lobajson.LobaGetType(e));
+      EXPECT_EQ_DOUBLE((double)i + 1.0, lobajson.LobaGetNumber(e));
+    }
+  }
+
+  EXPECT_EQ_STRING("o", lobajson.LobaGetObjectKey(&v, 6), lobajson.LobaGetObjectKeyLength(&v, 6));
+  {
+    LobaValue *o = lobajson.LobaGetObjectValue(&v, 6);
+    EXPECT_EQ_INT(lobaObject, lobajson.LobaGetType(o));
+    EXPECT_EQ_SIZE_T(3, lobajson.LobaGetObjectSize(o));
+    size_t i;
+    for (i = 0; i < 3; i++) {
+      LobaValue *ov = lobajson.LobaGetObjectValue(o, i);
+      EXPECT_TRUE('1' + i == lobajson.LobaGetObjectKey(o, i)[0]);
+      EXPECT_EQ_SIZE_T(1, lobajson.LobaGetObjectKeyLength(o, i));
+      EXPECT_EQ_INT(lobaNumber, lobajson.LobaGetType(ov));
+      EXPECT_EQ_DOUBLE((double)i + 1.0, lobajson.LobaGetNumber(ov));
+    }
+  }
+  lobajson.LobaFree(&v);
+}
+
 static void test_parse() {
   test_parse_null();
   test_parse_true();
@@ -372,6 +441,7 @@ static void test_parse() {
   test_parse_string_invalid_unicode_surrogate();
   test_parse_array();
   test_parse_invalid_array();
+  test_parse_object();
 }
 
 // test_get_boolean
@@ -423,13 +493,94 @@ static void test_access() {
   test_get_string();
 }
 
-
 // test unicode
+#define TEST_ROUNDTRIP(json)\
+    do {                    \
+        LobaValue v;        \
+        LobaJson lobajson;                    \
+        char* json2;\
+        size_t length;\
+        LobaInit(&v);\
+        EXPECT_EQ_INT(lobaParseOk, lobajson.LobaParse(&v, json)); \
+        json2 = lobajson.LobaStringify(&v, &length);\
+        EXPECT_EQ_STRING(json, json2, length);\
+        lobajson.LobaFree(&v);\
+        free(json2);\
+    } while(0)
 
+// test_stringify_number
+static void test_stringify_number() {
+  TEST_ROUNDTRIP("0");
+  TEST_ROUNDTRIP("-0");
+  TEST_ROUNDTRIP("1");
+  TEST_ROUNDTRIP("-1");
+  TEST_ROUNDTRIP("1.5");
+  TEST_ROUNDTRIP("-1.5");
+  TEST_ROUNDTRIP("3.25");
+  TEST_ROUNDTRIP("1e+20");
+  TEST_ROUNDTRIP("1.234e+20");
+  TEST_ROUNDTRIP("1.234e-20");
+
+  TEST_ROUNDTRIP("1.0000000000000002"); /* the smallest number > 1 */
+  TEST_ROUNDTRIP("4.9406564584124654e-324"); /* minimum denormal */
+  TEST_ROUNDTRIP("-4.9406564584124654e-324");
+  TEST_ROUNDTRIP("2.2250738585072009e-308");  /* Max subnormal double */
+  TEST_ROUNDTRIP("-2.2250738585072009e-308");
+  TEST_ROUNDTRIP("2.2250738585072014e-308");  /* Min normal positive double */
+  TEST_ROUNDTRIP("-2.2250738585072014e-308");
+  TEST_ROUNDTRIP("1.7976931348623157e+308");  /* Max double */
+  TEST_ROUNDTRIP("-1.7976931348623157e+308");
+}
+
+static void test_stringify_string() {
+  TEST_ROUNDTRIP("\"\"");
+  TEST_ROUNDTRIP("\"Hello\"");
+  TEST_ROUNDTRIP("\"Hello\\nWorld\"");
+  TEST_ROUNDTRIP("\"\\\" \\\\ / \\b \\f \\n \\r \\t\"");
+  TEST_ROUNDTRIP("\"Hello\\u0000World\"");
+}
+
+static void test_stringify_array() {
+  TEST_ROUNDTRIP("[]");
+  TEST_ROUNDTRIP("[null,false,true,123,\"abc\",[1,2,3]]");
+}
+
+static void test_stringify_object() {
+  TEST_ROUNDTRIP("{}");
+  TEST_ROUNDTRIP("{\"n\":null,\"f\":false,\"t\":true,\"i\":123,\"s\":\"abc\",\"a\":[1,2,3],\"o\":{\"1\":1,\"2\":2,\"3\":3}}");
+}
+
+
+
+
+static void test_stringify() {
+  TEST_ROUNDTRIP("null");
+  TEST_ROUNDTRIP("false");
+  TEST_ROUNDTRIP("true");
+  test_stringify_number();
+  test_stringify_string();
+  test_stringify_array();
+  test_stringify_object();
+}
+
+static  void TestWholeOperator() {
+  LobaJson lobajson;
+  LobaValue v;
+  lobajson.LobaParse(&v, "{\"n\":null,\"f\":false,\"t\":true,\"i\":123,\"s\":\"abc\",\"a\":[1,2,3],\"o\":{\"1\":1,\"2\":2,\"3\":3}}");
+  char *s = lobajson.LobaStringify(&v, nullptr);
+  printf("%s", s);
+  lobajson.LobaFree(&v);
+  free(s);
+}
 
 int main() {
   test_parse();
   test_access();
+  test_stringify();
+  printf("================\n");
+  TestWholeOperator();
+  printf("\n");
+  printf("================\n");
   printf("%d/%d (%3.2f%%) "
          "passed\n", test_pass, test_count, test_pass * 100.0 / test_count);
   return main_ret;
